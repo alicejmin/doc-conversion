@@ -57,5 +57,42 @@ module.exports.handler = async (event, context) => {
       });
   }
 
+  let fileData = await getObject(s3fileName);
+    try{  
+      fs.writeFileSync('/tmp/'+s3fileName, fileData.Body);
+    } catch(err) {
+      // An error occurred
+      console.error('file write:', err);
+    }
 
+    const convertCommand = `export HOME=/tmp && /tmp/lo/instdir/program/soffice.bin --headless --norestore --invisible --nodefault --nofirststartwizard --nolockcheck --nologo --convert-to "pdf:writer_pdf_Export" --outdir /tmp /tmp/${s3fileName}`;
+    try {
+      console.log(execSync(convertCommand).toString('utf8'));
+    } catch (e) {
+      console.log(execSync(convertCommand).toString('utf8'));
+    }
+    console.log(execSync('ls -alh /tmp').toString('utf8'));
+
+    function uploadFile(buffer, fileName) {
+      return new Promise((resolve, reject) => {
+       s3.putObject({
+        Body: buffer,
+        Key: fileName,
+        Bucket: bucketName,
+       }, (error) => {
+        if (error) {
+         reject(error);
+        } else {
+ 
+         resolve(fileName);
+        }
+       });
+      });
+     }
+ 
+ 
+     let fileParts = s3fileName.substr(0, s3fileName.lastIndexOf(".")) + ".pdf";
+     let fileB64data = fs.readFileSync('/tmp/'+fileParts);
+     await uploadFile(fileB64data, 'pdf/'+fileParts);
+     console.log('new pdf converted and uploaded!!!');
 };
